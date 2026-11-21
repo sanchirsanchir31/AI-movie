@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Кино – Монгол хадмал AI кино</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.js"></script>
+<style>
+:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+body{margin:0;background:#0B0B0F;color:#fff;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:#0B0B0F;z-index:60}
+.noscroll::-webkit-scrollbar{display:none}.noscroll{scrollbar-width:none}
+@keyframes drift{0%{transform:scale(1) translate(0,0)}100%{transform:scale(1.15) translate(-2%,-2%)}}
+.drift{animation:drift 9s ease-in-out infinite alternate}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const {useState,useEffect,useMemo}=React;
+const html=htm.bind(React.createElement);
+const A='#8B5CF6',R='#E50914';
+
+/* ---------- Lucide-style icons (inline) ---------- */
+const P={
+search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+play:'<polygon points="6 3 20 12 6 21 6 3" fill="currentColor"/>',
+pause:'<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
+share:'<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/>',
+crown:'<path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/>',
+x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+lock:'<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+next:'<polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/>',
+cc:'<rect width="18" height="14" x="3" y="5" rx="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/>',
+fb:'<path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>',
+plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
+trash:'<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+film:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18M17 3v18M3 8h4M3 12h18M3 16h4M17 8h4M17 16h4"/>'
+};
+const Icon=({n,s=20,className=''})=>html`<svg width=${s} height=${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className=${className} dangerouslySetInnerHTML=${{__html:P[n]}}/>`;
+
+/* ---------- Mock data ---------- */
+const CATS=['All','Romance','Fantasy','CEO/Billionaire','Sci-Fi','Full Movies'];
+const SEED=[
+{id:1,title:'Billionaire’s Secret Bride',cat:'CEO/Billionaire',r:'9:16',eps:1,dur:'12 мин',free:1,views:'1.2M',vip:true,g:['#8B5CF6','#E50914'],desc:'A quiet translator signs a contract marriage with the coldest CEO in Ulaanbaatar. Every episode makes the contract harder to keep.'},
+{id:2,title:'Moonlight Fox Princess',cat:'Fantasy',r:'9:16',eps:1,dur:'15 мин',free:1,views:'860K',vip:true,g:['#4C1D95','#EC4899'],desc:'A nine-tailed fox princess hides among mortals to escape an arranged war-marriage.'},
+{id:3,title:'Neon Heart 2099',cat:'Sci-Fi',r:'9:16',eps:1,dur:'11 мин',free:1,views:'540K',vip:true,g:['#0EA5E9','#8B5CF6'],desc:'In a city of androids, a repair girl discovers her heartbeat is the last real one.'},
+{id:4,title:'Cold CEO’s Contract Wife',cat:'CEO/Billionaire',r:'9:16',eps:1,dur:'14 мин',free:1,views:'2.1M',vip:true,g:['#E50914','#7F1D1D'],desc:'He needed a wife for one year. She needed a job. Nobody planned on falling in love.'},
+{id:5,title:'The Last Dragon Keeper',cat:'Fantasy',r:'16:9',eps:1,dur:'1h 42m',free:1,views:'310K',vip:true,g:['#F59E0B','#E50914'],desc:'The final dragon egg hatches in a steppe village, and an empire wakes up to hunt it.'},
+{id:6,title:'Orbit Zero',cat:'Sci-Fi',r:'16:9',eps:1,dur:'1h 28m',free:1,views:'275K',vip:true,g:['#1E3A8A','#06B6D4'],desc:'A lone pilot drifts beyond Mars with a message that could end the war.'},
+{id:7,title:'Rain Over Seoul',cat:'Romance',r:'16:9',eps:1,dur:'1h 55m',free:1,views:'498K',vip:true,g:['#475569','#EC4899'],desc:'Two strangers share one umbrella and one impossible summer.'},
+{id:8,title:'Crown of Ashes',cat:'Fantasy',r:'16:9',eps:1,dur:'2h 04m',free:1,views:'189K',vip:true,g:['#7C2D12','#8B5CF6'],desc:'A burned kingdom, a stolen crown, and a queen who refuses to kneel.'}
+];
+const SUBS=['Чи намайг үнэхээр мартсан юм уу?','Энэ бол миний сүүлчийн хариулт.','Маргааш өглөө би чамайг хүлээнэ.','Зүрх минь бүгдийг мэдэрч байна…','Хурдан яв, цаг алга!'];
+const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+const inCat=(m,c)=>c==='All'||(c==='Full Movies'?m.r==='16:9':m.cat===c);
+
+/* ---------- Card ---------- */
+const Card=({m,onOpen})=>{
+  const v=m.r==='9:16';
+  return html`<button onClick=${()=>onOpen(m)} className=${'group shrink-0 snap-start text-left '+(v?'w-[138px] sm:w-[168px]':'w-[256px] sm:w-[320px]')}>
+    <div className=${'relative overflow-hidden rounded-xl bg-[#16161E] ring-1 ring-white/5 transition group-hover:ring-[#8B5CF6] group-hover:-translate-y-1 '+(v?'aspect-[9/16]':'aspect-video')} style=${{background:`linear-gradient(160deg,${m.g[0]},${m.g[1]})`}}>
+      ${m.thumb&&html`<img src=${m.thumb} alt="" className="absolute inset-0 h-full w-full object-cover" onError=${e=>e.target.remove()}/>`}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20"/>
+      <span className="absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[11px] font-semibold backdrop-blur">${m.eps>1?m.eps+' ангийн':m.dur}</span>
+      
+      <span className="absolute bottom-2 left-2 rounded-full bg-white/90 p-2 text-black opacity-0 transition group-hover:opacity-100"><${Icon} n="play" s=${14}/></span>
+    </div>
+    <div className="mt-2 truncate text-sm font-semibold">${m.title}</div>
+    <div className="flex items-center gap-1 text-xs text-white/50"><${Icon} n="eye" s=${12}/>${m.views} үзсэн · ${m.cat}</div>
+  </button>`;
+};
+const Row=({title,items,onOpen})=>items.length?html`<section className="mt-8">
+  <h2 className="mb-3 px-4 text-lg font-bold sm:px-8"><span style=${{color:A}}>▍</span>${title}</h2>
+  <div className="noscroll flex snap-x gap-3 overflow-x-auto px-4 pb-2 sm:gap-4 sm:px-8">${items.map(m=>html`<${Card} key=${m.id} m=${m} onOpen=${onOpen}/>`)}</div>
+</section>`:null;
+
+/* ---------- Player ---------- */
+const Player=({m,ep,setEp,onClose,openVip,isVip})=>{
+  const DUR=(()=>{const s=m.dur||'';const h=+(s.match(/(\d+)\s*h/)||[0,0])[1],mi=+(s.match(/(\d+)\s*(m|мин)/)||[0,0])[1];return (h*60+mi)*60||2400})();const FREE=600,SPEED=(m.video&&/^https?:/.test(m.video))?1:30;
+  const [t,setT]=useState(0),[play,setPlay]=useState(true),[subs,setSubs]=useState(true),[spd,setSpd]=useState(1),[auto,setAuto]=useState(true);
+  const v=m.r==='9:16';
+  const locked=n=>false;const paid=m.vip&&!isVip;const gated=paid&&t>=FREE;
+  const hasNext=ep<m.eps&&!locked(ep+1);
+  useEffect(()=>{setT(0);setPlay(true)},[ep,m.id]);
+  useEffect(()=>{
+    if(!play)return;
+    const i=setInterval(()=>setT(x=>x+0.25*spd*SPEED),250);
+    return()=>clearInterval(i);
+  },[play,spd]);
+  useEffect(()=>{
+    if(paid&&t>=FREE){setPlay(false);setT(FREE)} else if(t>=DUR){ if(auto&&hasNext){setEp(ep+1)} else {setPlay(false);setT(DUR)} }
+  },[t]);
+  const next=()=>{ if(ep<m.eps){ locked(ep+1)?openVip():setEp(ep+1) } };
+  const real=m.video&&/^https?:/.test(m.video);
+  return html`<div className="fixed inset-0 z-50 overflow-y-auto bg-[#0B0B0F]">
+    <div className="mx-auto max-w-6xl p-3 sm:p-6" style=${{paddingTop:'calc(env(safe-area-inset-top,0px) + 12px)'}}>
+      <div className="mb-3 flex items-center justify-between">
+        <div><h2 className="text-lg font-bold sm:text-xl">${m.title}</h2><p className="text-xs text-white/50">${m.eps>1?`${ep}-р анги / ${m.eps}`:m.dur} · ${m.r}</p></div>
+        <button onClick=${onClose} className="rounded-full bg-white/10 p-2 hover:bg-white/20" aria-label="Close"><${Icon} n="x"/></button>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+        <div>
+          <div className=${'relative mx-auto overflow-hidden rounded-xl bg-black '+(v?'aspect-[9/16] max-h-[78vh]':'aspect-video w-full')} style=${{background:`linear-gradient(160deg,${m.g[0]},${m.g[1]})`}}>
+            ${real?html`<iframe src=${m.video} className="absolute inset-0 h-full w-full" allow="autoplay; fullscreen" allowFullScreen/>`:html`
+              <div className="drift absolute inset-0 opacity-60" style=${{background:`radial-gradient(circle at 30% 30%,${m.g[1]},transparent 60%)`}}/>
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+                <div className="text-xs uppercase tracking-widest text-white/60">Demo player</div>
+                <div className="mt-1 text-2xl font-extrabold drop-shadow">${m.title}</div>
+                <div className="text-white/70">${m.eps>1?ep+'-р анги':''}</div>
+              </div>`}
+            ${gated&&html`<div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/85 p-6 text-center"><span className="rounded-full bg-[#8B5CF6] p-3"><${Icon} n="lock" s=${24}/></span><div className="text-lg font-extrabold">Эхний 10 минут дууслаа</div><p className="max-w-xs text-sm text-white/70">Үргэлжлүүлэн үзэхийн тулд VIP эрх аваарай.</p><button onClick=${openVip} className="rounded-lg px-6 py-2.5 font-bold" style=${{background:`linear-gradient(90deg,${A},${R})`}}>VIP эрх авах</button></div>`}
+            ${subs&&!real&&html`<div className="absolute inset-x-3 bottom-14 text-center"><span className="inline-block rounded bg-black/70 px-2 py-1 text-sm font-medium sm:text-base">${SUBS[Math.floor(t/4)%SUBS.length]}</span></div>`}
+            ${!real&&html`<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-3">
+              <div className="relative mb-2 h-1.5 cursor-pointer rounded bg-white/20" onClick=${e=>{const b=e.currentTarget.getBoundingClientRect();const x=(e.clientX-b.left)/b.width*DUR;setT(paid?Math.min(x,FREE):x);if(paid&&x>=FREE)setPlay(false)}}><div className="h-full rounded" style=${{width:(t/DUR*100)+'%',background:A}}/>${paid&&FREE<DUR&&html`<div className="absolute w-0.5 bg-[#E50914]" style=${{left:(FREE/DUR*100)+'%',top:'-3px',height:'12px'}}/>`}</div>
+              <div className="flex items-center gap-3 text-sm">
+                <button onClick=${()=>setPlay(!play)} aria-label="Play/Pause"><${Icon} n=${play?'pause':'play'} s=${22}/></button>
+                ${ep<m.eps&&html`<button onClick=${next} aria-label="Next"><${Icon} n="next" s=${20}/></button>`}
+                <span className="text-xs text-white/70">${fmt(t)} / ${fmt(DUR)}</span>
+              </div></div>`}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            <button onClick=${()=>setSubs(!subs)} className=${'flex items-center gap-1.5 rounded-lg px-3 py-2 font-medium '+(subs?'bg-[#8B5CF6]':'bg-[#16161E] text-white/70')}><${Icon} n="cc" s=${16}/>Монгол хадмал: ${subs?'ON':'OFF'}</button>
+            <div className="flex overflow-hidden rounded-lg bg-[#16161E]">${[0.75,1,1.25,1.5,2].map(s=>html`<button key=${s} onClick=${()=>setSpd(s)} className=${'px-2.5 py-2 '+(spd===s?'bg-white text-black font-bold':'text-white/70')}>${s}x</button>`)}</div>
+            <button onClick=${()=>setAuto(!auto)} className=${'rounded-lg px-3 py-2 '+(auto?'bg-[#16161E] text-[#8B5CF6]':'bg-[#16161E] text-white/50')}>Auto-next: ${auto?'ON':'OFF'}</button>
+            ${ep<m.eps&&html`<button onClick=${next} className="ml-auto flex items-center gap-1.5 rounded-lg bg-[#E50914] px-4 py-2 font-semibold"><${Icon} n="next" s=${16}/>Дараагийн анги</button>`}
+          </div>
+          <p className="mt-4 text-sm leading-relaxed text-white/70">${m.desc}</p>
+        </div>
+        <aside className="rounded-xl bg-[#16161E] p-3">
+          <h3 className="mb-2 font-bold">${m.eps>1?'Ангиуд':'Мэдээлэл'}</h3>
+          ${m.eps>1?html`<div className="grid max-h-[60vh] grid-cols-5 gap-2 overflow-y-auto">${Array.from({length:m.eps},(_,i)=>i+1).map(n=>html`
+            <button key=${n} onClick=${()=>locked(n)?openVip():setEp(n)} className=${'relative flex aspect-square items-center justify-center rounded-lg text-sm font-semibold '+(n===ep?'bg-[#8B5CF6]':'bg-[#0B0B0F] hover:bg-white/10')}>
+              ${n}${locked(n)&&html`<span className="absolute right-1 top-1 text-[#E50914]"><${Icon} n="lock" s=${10}/></span>`}</button>`)}</div>
+            `
+          :html`<p className="text-sm text-white/60">Нэг ангит AI кино · ${m.dur}${paid?' · Эхний 10 мин үнэгүй':''}</p>`}
+          <button onClick=${openVip} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg py-2.5 font-semibold" style=${{background:`linear-gradient(90deg,${A},${R})`}}><${Icon} n="crown" s=${16}/>${m.vip&&isVip?'VIP идэвхтэй ✓':'VIP эрх авах'}</button>
+        </aside>
+      </div>
+    </div>
+  </div>`;
+};
+
+/* ---------- VIP modal ---------- */
+const Vip=({onClose,onUnlock})=>html`<div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/80 p-3 sm:items-center" onClick=${onClose}>
+  <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl bg-[#16161E] p-5 ring-1 ring-white/10" onClick=${e=>e.stopPropagation()}>
+    <div className="flex items-start justify-between"><div><div className="flex items-center gap-2 text-xl font-extrabold"><span style=${{color:A}}><${Icon} n="crown" s=${22}/></span>VIP / Дэмжлэг</div>
+      <p className="mt-1 text-sm text-white/60">Бүх кино нэг ангитай. Эхний 10 минут үнэгүй, үргэлжлүүлэн үзэхэд VIP эрх хэрэгтэй.</p></div>
+      <button onClick=${onClose} aria-label="Close"><${Icon} n="x"/></button></div>
+    <ul className="mt-4 space-y-2 text-sm text-white/80"><li>✔ Бүх киног бүтнээр нь хязгааргүй үзнэ</li><li>✔ Орчуулагч, хадмал хийгчийг шууд дэмжинэ</li><li>✔ Шинэ кино гаргахад тусална</li></ul>
+    <div className="mt-4 grid grid-cols-3 gap-2 text-center">${[['7 хоног','5,000₮'],['1 сар','15,000₮'],['3 сар','35,000₮']].map(([a,b],i)=>html`<div key=${a} className=${'rounded-xl p-3 '+(i===1?'bg-[#8B5CF6]':'bg-[#0B0B0F]')}><div className="text-xs text-white/70">${a}</div><div className="font-bold">${b}</div></div>`)}</div>
+    <div className="mt-4 flex flex-col items-center rounded-xl bg-[#0B0B0F] p-4">
+      <div className="grid h-40 w-40 place-items-center rounded-lg bg-white text-center text-xs font-semibold text-black">QPay QR<br/>(placeholder)</div>
+      <p className="mt-3 text-center text-xs text-white/60">QR-аар төлсний дараа гүйлгээний утгад имэйл/Facebook нэрээ бичиж, Page-ийн мессежээр баримтаа илгээнэ үү.</p>
+    </div>
+    <div className="mt-4 flex gap-2"><input id="vipcode" placeholder="VIP код" className="min-w-0 flex-1 rounded-lg bg-[#0B0B0F] px-3 py-2 text-sm outline-none ring-1 ring-white/10 focus:ring-[#8B5CF6]"/><button onClick=${()=>{const c=document.getElementById('vipcode').value.trim();c==='VIP2026'?onUnlock():alert('Код буруу байна')}} className="rounded-lg px-4 py-2 text-sm font-semibold" style=${{background:A}}>Нээх</button></div><p className="mt-1 text-[11px] text-white/40">Demo код: VIP2026</p>
+    <a href="#" className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-[#1877F2] py-2.5 font-semibold"><${Icon} n="fb" s=${16}/>Facebook Page руу мессеж бичих</a>
+  </div></div>`;
+
+/* ---------- Admin ---------- */
+const Admin=({movies,custom,setCustom})=>{
+  const [ok,setOk]=useState(false),[pw,setPw]=useState('');
+  const blank={title:'',desc:'',cat:'Romance',r:'9:16',eps:12,thumb:'',video:'',vip:true};
+  const [f,setF]=useState(blank);
+  const up=(k,v)=>setF({...f,[k]:v});
+  const pal=[['#8B5CF6','#E50914'],['#0EA5E9','#8B5CF6'],['#F59E0B','#E50914'],['#10B981','#8B5CF6']];
+  const inp='w-full rounded-lg bg-[#0B0B0F] px-3 py-2 text-sm outline-none ring-1 ring-white/10 focus:ring-[#8B5CF6]';
+  const add=e=>{e.preventDefault();if(!f.title.trim())return;
+    const eps=f.r==='16:9'?1:Math.max(1,+f.eps||1);
+    setCustom([{id:Date.now(),title:f.title,desc:f.desc,cat:f.cat,r:f.r,eps,dur:'—',free:f.vip?Math.min(3,eps):eps,views:'0',vip:f.vip,g:pal[Date.now()%4],thumb:f.thumb,video:f.video},...custom]);setF(blank)};
+  if(!ok)return html`<div className="mx-auto mt-24 max-w-sm rounded-2xl bg-[#16161E] p-6">
+    <h1 className="mb-1 text-xl font-bold">Admin</h1><p className="mb-4 text-xs text-white/50">Demo passcode: admin123 (client-side only; use real auth in production).</p>
+    <input type="password" value=${pw} onInput=${e=>setPw(e.target.value)} placeholder="Passcode" className=${inp}/>
+    <button onClick=${()=>pw==='admin123'?setOk(true):alert('Wrong passcode')} className="mt-3 w-full rounded-lg py-2 font-semibold" style=${{background:A}}>Enter</button>
+    <a href="#" className="mt-3 block text-center text-sm text-white/50">← Back to site</a></div>`;
+  return html`<div className="mx-auto max-w-3xl p-4 sm:p-8">
+    <div className="mb-4 flex items-center justify-between"><h1 className="text-2xl font-extrabold">Add new movie</h1><a href="#" className="text-sm text-[#8B5CF6]">← Back to site</a></div>
+    <form onSubmit=${add} className="grid gap-3 rounded-2xl bg-[#16161E] p-4 sm:grid-cols-2">
+      <input required placeholder="Title" value=${f.title} onInput=${e=>up('title',e.target.value)} className=${inp+' sm:col-span-2'}/>
+      <textarea placeholder="Description" rows="3" value=${f.desc} onInput=${e=>up('desc',e.target.value)} className=${inp+' sm:col-span-2'}/>
+      <select value=${f.cat} onChange=${e=>up('cat',e.target.value)} className=${inp}>${CATS.slice(1,5).map(c=>html`<option key=${c}>${c}</option>`)}</select>
+      <select value=${f.r} onChange=${e=>up('r',e.target.value)} className=${inp}><option value="9:16">9:16 Vertical drama</option><option value="16:9">16:9 Full movie</option></select>
+      <input placeholder="Thumbnail URL" value=${f.thumb} onInput=${e=>up('thumb',e.target.value)} className=${inp}/>
+      <input placeholder="Video embed / stream URL" value=${f.video} onInput=${e=>up('video',e.target.value)} className=${inp}/>
+      ${f.r==='9:16'&&html`<input type="number" min="1" placeholder="Episodes" value=${f.eps} onInput=${e=>up('eps',e.target.value)} className=${inp}/>`}
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked=${f.vip} onChange=${e=>up('vip',e.target.checked)}/> Paid after first 10 min (VIP)</label>
+      <button className="flex items-center justify-center gap-2 rounded-lg py-2.5 font-semibold sm:col-span-2" style=${{background:`linear-gradient(90deg,${A},${R})`}}><${Icon} n="plus" s=${16}/>Add to catalog</button>
+    </form>
+    <h2 className="mb-2 mt-6 font-bold">Catalog (${movies.length})</h2>
+    <div className="space-y-2">${movies.map(m=>html`<div key=${m.id} className="flex items-center justify-between rounded-lg bg-[#16161E] px-3 py-2 text-sm"><span>${m.title} <span className="text-white/40">· ${m.r} · ${m.vip?'VIP':'Free'}</span></span>
+      ${custom.some(c=>c.id===m.id)&&html`<button onClick=${()=>setCustom(custom.filter(c=>c.id!==m.id))} className="text-[#E50914]" aria-label="Delete"><${Icon} n="trash" s=${16}/></button>`}</div>`)}</div>
+  </div>`;
+};
+
+/* ---------- App ---------- */
+const App=()=>{
+  const [hash,setHash]=useState(location.hash);
+  const [cat,setCat]=useState('All'),[q,setQ]=useState('');
+  const [open,setOpen]=useState(null),[ep,setEp]=useState(1),[vip,setVip]=useState(false);
+  const [isVip,setIsVip]=useState(()=>{try{return localStorage.getItem('aikino_vip')==='1'}catch(e){return false}});
+  const unlock=()=>{setIsVip(true);setVip(false);try{localStorage.setItem('aikino_vip','1')}catch(e){}};
+  const [custom,setCustom]=useState(()=>{try{return JSON.parse(localStorage.getItem('aikino_custom')||'[]')}catch(e){return[]}});
+  useEffect(()=>{try{localStorage.setItem('aikino_custom',JSON.stringify(custom))}catch(e){}},[custom]);
+  useEffect(()=>{const h=()=>setHash(location.hash);addEventListener('hashchange',h);return()=>removeEventListener('hashchange',h)},[]);
+  const movies=useMemo(()=>[...custom,...SEED],[custom]);
+  const list=movies.filter(m=>inCat(m,cat)&&(!q||(m.title+' '+m.cat).toLowerCase().includes(q.toLowerCase())));
+  const hero=movies[0];
+  const watch=m=>{setOpen(m);setEp(1)};
+  const share=()=>{try{navigator.share?navigator.share({title:hero.title,url:location.href}):navigator.clipboard.writeText(location.href)}catch(e){}};
+
+  if(hash==='#admin')return html`<${Admin} movies=${movies} custom=${custom} setCustom=${setCustom}/>`;
+  return html`<div>
+    <header className="sticky z-30 border-b border-white/5 bg-[#0B0B0F]/90 backdrop-blur" style=${{top:'env(safe-area-inset-top,0px)'}}>
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-8">
+        <a href="#" className="flex items-center gap-2 text-lg font-extrabold"><span className="grid h-8 w-8 place-items-center rounded-lg" style=${{background:`linear-gradient(135deg,${A},${R})`}}><${Icon} n="film" s=${18}/></span><span className="hidden sm:inline">AI Кино</span></a>
+        <div className="relative flex-1 sm:max-w-md"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40"><${Icon} n="search" s=${16}/></span>
+          <input value=${q} onInput=${e=>setQ(e.target.value)} placeholder="Нэр эсвэл төрлөөр хайх…" className="w-full rounded-full bg-[#16161E] py-2 pl-9 pr-3 text-sm outline-none ring-1 ring-white/5 focus:ring-[#8B5CF6]"/></div>
+        <button onClick=${()=>setVip(true)} className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold" style=${{background:`linear-gradient(90deg,${A},${R})`}}><${Icon} n="crown" s=${16}/>VIP<span className="hidden sm:inline"> / Support</span></button>
+      </div>
+      <nav className="noscroll mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 pb-3 sm:px-8">${CATS.map(c=>html`<button key=${c} onClick=${()=>setCat(c)} className=${'whitespace-nowrap rounded-full px-4 py-1.5 text-sm '+(cat===c?'bg-white font-bold text-black':'bg-[#16161E] text-white/70 hover:text-white')}>${c}</button>`)}</nav>
+    </header>
+
+    <main className="mx-auto max-w-7xl pb-10">
+      <section className="relative mx-4 mt-4 overflow-hidden rounded-2xl sm:mx-8" style=${{background:`linear-gradient(120deg,${hero.g[0]},${hero.g[1]})`}}>
+        <div className="drift absolute inset-0 opacity-50" style=${{background:'radial-gradient(circle at 70% 20%,rgba(255,255,255,.35),transparent 55%)'}}/>
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B0F] via-[#0B0B0F]/40 to-transparent"/>
+        <span className="absolute right-3 top-3 rounded bg-black/50 px-2 py-1 text-[11px] backdrop-blur">▶ Trailer preview (muted)</span>
+        <div className="relative flex min-h-[340px] flex-col justify-end p-5 sm:min-h-[420px] sm:p-10">
+          <span className="mb-2 w-fit rounded bg-[#E50914] px-2 py-0.5 text-xs font-bold">ОНЦЛОХ · ${hero.cat}</span>
+          <h1 className="max-w-xl text-3xl font-extrabold sm:text-5xl">${hero.title}</h1>
+          <p className="mt-2 max-w-xl text-sm text-white/80 sm:text-base">${hero.desc}</p>
+          <div className="mt-4 flex gap-3">
+            <button onClick=${()=>watch(hero)} className="flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 font-bold text-black hover:bg-white/90"><${Icon} n="play" s=${18}/>Watch Now</button>
+            <button onClick=${share} className="flex items-center gap-2 rounded-lg bg-white/15 px-5 py-2.5 font-semibold backdrop-blur hover:bg-white/25"><${Icon} n="share" s=${18}/>Share</button>
+          </div>
+        </div>
+      </section>
+
+      <${Row} title="Trending Vertical Dramas" items=${list.filter(m=>m.r==='9:16')} onOpen=${watch}/>
+      <${Row} title="Full AI Movies" items=${list.filter(m=>m.r==='16:9')} onOpen=${watch}/>
+      ${!list.length&&html`<p className="mt-16 text-center text-white/50">Илэрц олдсонгүй.</p>`}
+
+      <section className="mx-4 mt-10 flex flex-col items-start justify-between gap-4 rounded-2xl p-5 sm:mx-8 sm:flex-row sm:items-center" style=${{background:`linear-gradient(120deg,${A}33,${R}33)`,border:'1px solid rgba(255,255,255,.08)'}}>
+        <div><h3 className="flex items-center gap-2 text-lg font-bold"><${Icon} n="crown"/>VIP / Early Access</h3><p className="text-sm text-white/70">Бүх кино эхний 10 минут үнэгүй. Үргэлжлүүлэн үзэхийн тулд VIP эрх аваарай.</p></div>
+        <button onClick=${()=>setVip(true)} className="rounded-lg bg-white px-5 py-2.5 font-bold text-black">Дэмжих</button>
+      </section>
+    </main>
+
+    <footer className="border-t border-white/5 bg-[#0B0B0F] px-4 py-8 text-sm text-white/50 sm:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4">
+        <div className="flex flex-wrap gap-3"><a href="#" className="flex items-center gap-2 rounded-lg bg-[#16161E] px-4 py-2 text-white"><${Icon} n="fb" s=${16}/>Facebook Page</a><a href="#" className="flex items-center gap-2 rounded-lg bg-[#16161E] px-4 py-2 text-white"><${Icon} n="fb" s=${16}/>Facebook Group</a></div>
+        <p className="max-w-3xl text-xs leading-relaxed"><b className="text-white/70">DMCA / Copyright:</b> All titles are AI-generated or used with permission from their creators. Mongolian subtitles are community translations. If you are a rights holder and believe content infringes your rights, contact us via our Facebook Page and we will remove it promptly.</p>
+        <p className="text-xs">© 2026 AI Кино · <a href="#admin" className="underline">Admin</a></p>
+      </div>
+    </footer>
+
+    ${open&&html`<${Player} m=${open} ep=${ep} setEp=${setEp} onClose=${()=>setOpen(null)} openVip=${()=>setVip(true)} isVip=${isVip}/>`}
+    ${vip&&html`<${Vip} onClose=${()=>setVip(false)} onUnlock=${unlock}/>`}
+  </div>`;
+};
+ReactDOM.createRoot(document.getElementById('root')).render(html`<${App}/>`);
+</script>
+</body>
+</html>
